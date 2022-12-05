@@ -9,22 +9,25 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openssl
 PKG_BASE:=1.1.1
-PKG_BUGFIX:=g
+PKG_BUGFIX:=s
 PKG_VERSION:=$(PKG_BASE)$(PKG_BUGFIX)
-PKG_RELEASE:=1
+PKG_RELEASE:=$(AUTORELEASE)
 PKG_USE_MIPS16:=0
-ENGINES_DIR=engines-1.1
 
 PKG_BUILD_PARALLEL:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:= \
-	http://ftp.fi.muni.cz/pub/openssl/source/ \
-	http://ftp.linux.hr/pub/openssl/source/ \
+	https://mirrors.tencent.com/openssl/source/ \
+	https://mirrors.tencent.com/openssl/source/old/$(PKG_BASE)/ \
+	https://www.openssl.org/source/ \
+	https://www.openssl.org/source/old/$(PKG_BASE)/ \
+	https://ftp.fi.muni.cz/pub/openssl/source/ \
+	https://ftp.fi.muni.cz/pub/openssl/source/old/$(PKG_BASE)/ \
 	ftp://ftp.pca.dfn.de/pub/tools/net/openssl/source/ \
-	http://www.openssl.org/source/ \
-	http://www.openssl.org/source/old/$(PKG_BASE)/
-PKG_HASH:=ddb04774f1e32f0c49751e21b67216ac87852ceb056b75209af2443400636d46
+	ftp://ftp.pca.dfn.de/pub/tools/net/openssl/source/old/$(PKG_BASE)/
+
+PKG_HASH:=c5ac01e760ee6ff0dab61d6b2bbd30146724d063eb322180c6f18a6f74e4b6aa
 
 PKG_LICENSE:=OpenSSL
 PKG_LICENSE_FILES:=LICENSE
@@ -50,7 +53,6 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_OPENSSL_WITH_DTLS \
 	CONFIG_OPENSSL_WITH_EC2M \
 	CONFIG_OPENSSL_WITH_ERROR_MESSAGES \
-	CONFIG_OPENSSL_WITH_GOST \
 	CONFIG_OPENSSL_WITH_IDEA \
 	CONFIG_OPENSSL_WITH_MDC2 \
 	CONFIG_OPENSSL_WITH_NPN \
@@ -64,6 +66,7 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_OPENSSL_WITH_WHIRLPOOL
 
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/openssl-engine.mk
 
 ifneq ($(CONFIG_CCACHE),)
 HOSTCC=$(HOSTCC_NOCACHE)
@@ -94,8 +97,7 @@ $(call Package/openssl/Default)
   DEPENDS:=+OPENSSL_WITH_COMPRESSION:zlib \
 	   +OPENSSL_ENGINE_BUILTIN_AFALG:kmod-crypto-user \
 	   +OPENSSL_ENGINE_BUILTIN_DEVCRYPTO:kmod-cryptodev \
-	   +OPENSSL_ENGINE_BUILTIN_PADLOCK:kmod-crypto-hw-padlock \
-	   +TARGET_x86:libpthread
+	   +OPENSSL_ENGINE_BUILTIN_PADLOCK:kmod-crypto-hw-padlock
   TITLE+= (libraries)
   ABI_VERSION:=1.1
   MENU:=1
@@ -128,6 +130,8 @@ endef
 
 define Package/libopenssl-conf/conffiles
 /etc/ssl/openssl.cnf
+$(if CONFIG_OPENSSL_ENGINE_BUILTIN_DEVCRYPTO,/etc/ssl/engines.cnf.d/devcrypto.cnf)
+$(if CONFIG_OPENSSL_ENGINE_BUILTIN_PADLOCK,/etc/ssl/engines.cnf.d/padlock.cnf)
 endef
 
 define Package/libopenssl-conf/description
@@ -135,55 +139,50 @@ $(call Package/openssl/Default/description)
 This package installs the OpenSSL configuration file /etc/ssl/openssl.cnf.
 endef
 
+$(eval $(call Package/openssl/add-engine,afalg))
 define Package/libopenssl-afalg
   $(call Package/openssl/Default)
-  SUBMENU:=SSL
+  $(call Package/openssl/engine/Default)
   TITLE:=AFALG hardware acceleration engine
-  DEPENDS:=libopenssl @OPENSSL_ENGINE @KERNEL_AIO @!LINUX_3_18 \
-	   +PACKAGE_libopenssl-afalg:kmod-crypto-user +libopenssl-conf @!OPENSSL_ENGINE_BUILTIN
+  DEPENDS += @KERNEL_AIO +PACKAGE_libopenssl-afalg:kmod-crypto-user \
+	     @!OPENSSL_ENGINE_BUILTIN
 endef
 
 define Package/libopenssl-afalg/description
 This package adds an engine that enables hardware acceleration
 through the AF_ALG kernel interface.
-To use it, you need to configure the engine in /etc/ssl/openssl.cnf
 See https://www.openssl.org/docs/man1.1.1/man5/config.html#Engine-Configuration-Module
 and https://openwrt.org/docs/techref/hardware/cryptographic.hardware.accelerators
 The engine_id is "afalg"
 endef
 
-ifeq ($(CONFIG_TARGET_ipq806x)$(CONFIG_TARGET_ipq_ipq40xx),)
-  OPENSSL_OPTIONS += no-hw
-endif
-
+$(eval $(call Package/openssl/add-engine,devcrypto))
 define Package/libopenssl-devcrypto
   $(call Package/openssl/Default)
-  SUBMENU:=SSL
+  $(call Package/openssl/engine/Default)
   TITLE:=/dev/crypto hardware acceleration engine
-  DEPENDS:=libopenssl @OPENSSL_ENGINE +PACKAGE_libopenssl-devcrypto:kmod-cryptodev +libopenssl-conf \
-	   @!OPENSSL_ENGINE_BUILTIN
+  DEPENDS += +PACKAGE_libopenssl-devcrypto:kmod-cryptodev @!OPENSSL_ENGINE_BUILTIN
 endef
 
 define Package/libopenssl-devcrypto/description
 This package adds an engine that enables hardware acceleration
 through the /dev/crypto kernel interface.
-To use it, you need to configure the engine in /etc/ssl/openssl.cnf
 See https://www.openssl.org/docs/man1.1.1/man5/config.html#Engine-Configuration-Module
 and https://openwrt.org/docs/techref/hardware/cryptographic.hardware.accelerators
 The engine_id is "devcrypto"
 endef
 
+$(eval $(call Package/openssl/add-engine,padlock))
 define Package/libopenssl-padlock
   $(call Package/openssl/Default)
-  SUBMENU:=SSL
+  $(call Package/openssl/engine/Default)
   TITLE:=VIA Padlock hardware acceleration engine
-  DEPENDS:=libopenssl @OPENSSL_ENGINE @TARGET_x86 +PACKAGE_libopenssl-padlock:kmod-crypto-hw-padlock \
-	   +libopenssl-conf @!OPENSSL_ENGINE_BUILTIN
+  DEPENDS += @TARGET_x86 +PACKAGE_libopenssl-padlock:kmod-crypto-hw-padlock \
+	     @!OPENSSL_ENGINE_BUILTIN
 endef
 
 define Package/libopenssl-padlock/description
 This package adds an engine that enables VIA Padlock hardware acceleration.
-To use it, you need to configure it in /etc/ssl/openssl.cnf.
 See https://www.openssl.org/docs/man1.1.1/man5/config.html#Engine-Configuration-Module
 and https://openwrt.org/docs/techref/hardware/cryptographic.hardware.accelerators
 The engine_id is "padlock"
@@ -267,7 +266,7 @@ endif
 
 ifdef CONFIG_OPENSSL_ENGINE
   ifdef CONFIG_OPENSSL_ENGINE_BUILTIN
-    OPENSSL_OPTIONS += disable-dynamic-engine
+    #OPENSSL_OPTIONS += disable-dynamic-engine
     ifndef CONFIG_OPENSSL_ENGINE_BUILTIN_AFALG
       OPENSSL_OPTIONS += no-afalgeng
     endif
@@ -290,10 +289,6 @@ ifdef CONFIG_OPENSSL_ENGINE
   endif
 else
   OPENSSL_OPTIONS += no-engine
-endif
-
-ifndef CONFIG_OPENSSL_WITH_GOST
-  OPENSSL_OPTIONS += no-gost
 endif
 
 ifndef CONFIG_OPENSSL_WITH_DTLS
@@ -330,7 +325,7 @@ endif
 
 OPENSSL_TARGET:=linux-$(call qstrip,$(CONFIG_ARCH))-openwrt
 
-STAMP_CONFIGURED := $(STAMP_CONFIGURED)_$(shell echo $(OPENSSL_OPTIONS) | mkhash md5)
+STAMP_CONFIGURED := $(STAMP_CONFIGURED)_$(shell echo $(OPENSSL_OPTIONS) | $(MKHASH) md5)
 
 define Build/Configure
 	(cd $(PKG_BUILD_DIR); \
@@ -338,6 +333,7 @@ define Build/Configure
 			--prefix=/usr \
 			--libdir=lib \
 			--openssldir=/etc/ssl \
+			--cross-compile-prefix="$(TARGET_CROSS)" \
 			$(TARGET_CPPFLAGS) \
 			$(TARGET_LDFLAGS) \
 			$(OPENSSL_OPTIONS) && \
@@ -350,14 +346,12 @@ TARGET_LDFLAGS += -Wl,--gc-sections
 
 define Build/Compile
 	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
-		CROSS_COMPILE="$(TARGET_CROSS)" \
 		CC="$(TARGET_CC)" \
 		SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH) \
 		OPENWRT_OPTIMIZATION_FLAGS="$(TARGET_CFLAGS)" \
 		$(OPENSSL_MAKEFLAGS) \
 		all
 	$(MAKE) -C $(PKG_BUILD_DIR) \
-		CROSS_COMPILE="$(TARGET_CROSS)" \
 		CC="$(TARGET_CC)" \
 		DESTDIR="$(PKG_INSTALL_DIR)" \
 		$(OPENSSL_MAKEFLAGS) \
@@ -385,31 +379,22 @@ define Package/libopenssl/install
 endef
 
 define Package/libopenssl-conf/install
-	$(INSTALL_DIR) $(1)/etc/ssl
+	$(INSTALL_DIR) $(1)/etc/ssl/engines.cnf.d $(1)/etc/config $(1)/etc/init.d
 	$(CP) $(PKG_INSTALL_DIR)/etc/ssl/openssl.cnf $(1)/etc/ssl/
+	$(INSTALL_BIN) ./files/openssl.init $(1)/etc/init.d/openssl
+	$(SED) 's!%ENGINES_DIR%!/usr/lib/$(ENGINES_DIR)!' $(1)/etc/init.d/openssl
+	touch $(1)/etc/config/openssl
+	$(if $(CONFIG_OPENSSL_ENGINE_BUILTIN_DEVCRYPTO),
+		$(CP) ./files/devcrypto.cnf $(1)/etc/ssl/engines.cnf.d/
+		echo -e "config engine 'devcrypto'\n\toption enabled '1'" >> $(1)/etc/config/openssl)
+	$(if $(CONFIG_OPENSSL_ENGINE_BUILTIN_PADLOCK),
+		$(CP) ./files/padlock.cnf $(1)/etc/ssl/engines.cnf.d/
+		echo -e "\nconfig engine 'padlock'\n\toption enabled '1'" >> $(1)/etc/config/openssl)
 endef
 
 define Package/openssl-util/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/openssl $(1)/usr/bin/
-ifneq ($(CONFIG_LOWMEM_FLASH), y)
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tools/c_rehash $(1)/usr/bin/
-endif
-endef
-
-define Package/libopenssl-afalg/install
-	$(INSTALL_DIR) $(1)/usr/lib/$(ENGINES_DIR)
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/lib/$(ENGINES_DIR)/afalg.so $(1)/usr/lib/$(ENGINES_DIR)
-endef
-
-define Package/libopenssl-devcrypto/install
-	$(INSTALL_DIR) $(1)/usr/lib/$(ENGINES_DIR)
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/lib/$(ENGINES_DIR)/devcrypto.so $(1)/usr/lib/$(ENGINES_DIR)
-endef
-
-define Package/libopenssl-padlock/install
-	$(INSTALL_DIR) $(1)/usr/lib/$(ENGINES_DIR)
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/lib/$(ENGINES_DIR)/*padlock.so $(1)/usr/lib/$(ENGINES_DIR)
 endef
 
 $(eval $(call BuildPackage,libopenssl))
