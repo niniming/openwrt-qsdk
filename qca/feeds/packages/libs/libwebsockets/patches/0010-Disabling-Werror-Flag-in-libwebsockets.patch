@@ -1,0 +1,26 @@
+From cd69c02228ffdf939faf2d5697253968a83137af Mon Sep 17 00:00:00 2001
+From: Sohan Madhav Bangaru <sbangaru@codeaurora.org>
+Date: Wed, 11 Aug 2021 23:49:50 -0700
+Subject: [PATCH] Disabling Werror Flag in libwebsockets
+
+Signed-off-by: Sohan Madhav Bangaru <sbangaru@codeaurora.org>
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ff9a24e..1d92922 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -359,7 +359,7 @@ endif(UNIX)
+ 
+ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+     if (UNIX)
+-	set( CMAKE_C_FLAGS "-Wall -Werror -O4 -fvisibility=hidden ${CMAKE_C_FLAGS}" )
++	set( CMAKE_C_FLAGS "-Wall -O4 -fvisibility=hidden ${CMAKE_C_FLAGS}" )
+     else(UNIX)
+ 	set( CMAKE_C_FLAGS "-Wall -O4 -fvisibility=hidden ${CMAKE_C_FLAGS}" )
+     endif(UNIX)
+-- 
+2.7.4
+
