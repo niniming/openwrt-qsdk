@@ -47,7 +47,7 @@ local _protocols = { }
 
 local _interfaces, _bridge, _switch, _tunnel, _swtopo
 local _ubusnetcache, _ubusdevcache, _ubuswificache
-local _uci
+local _uci, _uci_state
 
 function _filter(c, s, o, r)
 	local val = _uci:get(c, s, o)
@@ -184,7 +184,18 @@ function _wifi_lookup(ifn)
 
 	-- looks like wifi, try to locate the section via ubus state
 	elseif _wifi_iface(ifn) then
-		return _wifi_state("ifname", ifn, "section")
+		local sid = _wifi_state("ifname", ifn, "section")
+		if not sid then
+			_uci_state:foreach("wireless", "wifi-iface",
+				function(s)
+					if s.ifname == ifn then
+						sid = s['.name']
+						return false
+					end
+				end)
+		end
+
+		return sid
 	end
 end
 
@@ -210,6 +221,7 @@ end
 
 function init(cursor)
 	_uci = cursor or _uci or uci.cursor()
+	_uci_state = _uci:substate()
 
 	_interfaces = { }
 	_bridge     = { }
@@ -1229,7 +1241,10 @@ end
 
 function interface.shortname(self)
 	if self.wif then
-		return self.wif:shortname()
+		return "%s %q" %{
+			self.wif:active_mode(),
+			self.wif:active_ssid() or self.wif:active_bssid()
+		}
 	else
 		return self.ifname
 	end
@@ -1240,7 +1255,7 @@ function interface.get_i18n(self)
 		return "%s: %s %q" %{
 			lng.translate("Wireless Network"),
 			self.wif:active_mode(),
-			self.wif:active_ssid() or self.wif:active_bssid() or self.wif:id()
+			self.wif:active_ssid() or self.wif:active_bssid()
 		}
 	else
 		return "%s: %q" %{ self:get_type_i18n(), self:name() }
@@ -1414,7 +1429,18 @@ function wifidev.is_up(self)
 		return (_ubuswificache[self.sid].up == true)
 	end
 
-	return false
+	local up = false
+	_uci_state:foreach("wireless", "wifi-iface",
+		function(s)
+			if s.device == self.sid then
+				if s.up == "1" then
+					up = true
+					return false
+				end
+			end
+		end)
+
+	return up
 end
 
 function wifidev.get_wifinet(self, net)
@@ -1472,58 +1498,26 @@ wifinet = utl.class()
 function wifinet.__init__(self, net, data)
 	self.sid = net
 
-	local n = 0
 	local num = { }
-	local netid, sid
+	local netid
 	_uci:foreach("wireless", "wifi-iface",
 		function(s)
-			n = n + 1
 			if s.device then
 				num[s.device] = num[s.device] and num[s.device] + 1 or 1
 				if s['.name'] == self.sid then
-					sid = "@wifi-iface[%d]" % n
 					netid = "%s.network%d" %{ s.device, num[s.device] }
 					return false
 				end
 			end
 		end)
 
-	if sid then
-		local _, k, r, i
-		for k, r in pairs(_ubuswificache) do
-			if type(r) == "table" and
-			   type(r.interfaces) == "table"
-			then
-				for _, i in ipairs(r.interfaces) do
-					if type(i) == "table" and i.section == sid then
-						self._ubusdata = {
-							radio = k,
-							dev = r,
-							net = i
-						}
-					end
-				end
-			end
-		end
-	end
-
 	local dev = _wifi_state("section", self.sid, "ifname") or netid
 
 	self.netid  = netid
 	self.wdev   = dev
 	self.iwinfo = dev and sys.wifi.getiwinfo(dev) or { }
-end
-
-function wifinet.ubus(self, ...)
-	local n, v = self._ubusdata
-	for n = 1, select('#', ...) do
-		if type(v) == "table" then
-			v = v[select(n, ...)]
-		else
-			return nil
-		end
-	end
-	return v
+	self.iwdata = data or _uci_state:get_all("wireless", self.sid) or
+		_uci_real:get_all("wireless", self.sid) or { }
 end
 
 function wifinet.get(self, opt)
@@ -1535,23 +1529,19 @@ function wifinet.set(self, opt, val)
 end
 
 function wifinet.mode(self)
-	return self:ubus("net", "config", "mode") or self:get("mode") or "ap"
+	return _uci_state:get("wireless", self.sid, "mode") or "ap"
 end
 
 function wifinet.ssid(self)
-	return self:ubus("net", "config", "ssid") or self:get("ssid")
+	return _uci_state:get("wireless", self.sid, "ssid")
 end
 
 function wifinet.bssid(self)
-	return self:ubus("net", "config", "bssid") or self:get("bssid")
+	return _uci_state:get("wireless", self.sid, "bssid")
 end
 
 function wifinet.network(self)
-	local net, networks = nil, { }
-	for net in utl.imatch(self:ubus("net", "config", "network") or self:get("network")) do
-		networks[#networks+1] = net
-	end
-	return networks
+	return _uci_state:get("wifinet", self.sid, "network")
 end
 
 function wifinet.id(self)
@@ -1563,16 +1553,17 @@ function wifinet.name(self)
 end
 
 function wifinet.ifname(self)
-	local ifname = self:ubus("net", "ifname") or self.iwinfo.ifname
-	if not ifname or ifname:match("^wifi%d") or ifname:match("^radio%d") or ifname:match("^ra") or ifname:match("^rai")  then
+	local ifname = self.iwinfo.ifname
+	if not ifname or ifname:match("^wifi%d") or ifname:match("^radio%d") then
 		ifname = self.wdev
 	end
 	return ifname
 end
 
 function wifinet.get_device(self)
-	local dev = self:ubus("radio") or self:get("device")
-	return dev and wifidev(dev) or nil
+	if self.iwdata.device then
+		return wifidev(self.iwdata.device)
+	end
 end
 
 function wifinet.is_up(self)
@@ -1581,7 +1572,7 @@ function wifinet.is_up(self)
 end
 
 function wifinet.active_mode(self)
-	local m = self.iwinfo.mode or self:ubus("net", "config", "mode") or self:get("mode") or "ap"
+	local m = _stror(self.iwdata.mode, self.iwinfo.mode) or "ap"
 
 	if     m == "ap"      then m = "Master"
 	elseif m == "sta"     then m = "Client"
@@ -1598,11 +1589,11 @@ function wifinet.active_mode_i18n(self)
 end
 
 function wifinet.active_ssid(self)
-	return self.iwinfo.ssid or self:ubus("net", "config", "ssid") or self:get("ssid")
+	return _stror(self.iwdata.ssid, self.iwinfo.ssid)
 end
 
 function wifinet.active_bssid(self)
-	return self.iwinfo.bssid or self:ubus("net", "config", "bssid") or self:get("bssid")
+	return _stror(self.iwdata.bssid, self.iwinfo.bssid) or "00:00:00:00:00:00"
 end
 
 function wifinet.active_encryption(self)
@@ -1629,8 +1620,8 @@ function wifinet.bitrate(self)
 end
 
 function wifinet.channel(self)
-	return self.iwinfo.channel or self:ubus("dev", "config", "channel") or
-		tonumber(self:get("channel") or "")
+	return self.iwinfo.channel or
+		tonumber(_uci_state:get("wireless", self.iwdata.device, "channel"))
 end
 
 function wifinet.signal(self)
@@ -1642,7 +1633,7 @@ function wifinet.noise(self)
 end
 
 function wifinet.country(self)
-	return self.iwinfo.country or self:ubus("dev", "config", "country") or "US"
+	return self.iwinfo.country or "00"
 end
 
 function wifinet.txpower(self)
@@ -1684,7 +1675,7 @@ end
 function wifinet.shortname(self)
 	return "%s %q" %{
 		lng.translate(self:active_mode()),
-		self:active_ssid() or self:active_bssid() or self:id()
+		self:active_ssid() or self:active_bssid()
 	}
 end
 
@@ -1692,7 +1683,7 @@ function wifinet.get_i18n(self)
 	return "%s: %s %q (%s)" %{
 		lng.translate("Wireless Network"),
 		lng.translate(self:active_mode()),
-		self:active_ssid() or self:active_bssid() or self:id(),
+		self:active_ssid() or self:active_bssid(),
 		self:ifname()
 	}
 end
@@ -1708,8 +1699,8 @@ end
 function wifinet.get_networks(self)
 	local nets = { }
 	local net
-	for net in utl.imatch(self:ubus("net", "config", "network") or self:get("network")) do
-		if _uci:get("network", net) == "interface" then
+	for net in utl.imatch(tostring(self.iwdata.network)) do
+		if _uci_real:get("network", net) == "interface" then
 			nets[#nets+1] = network(net)
 		end
 	end

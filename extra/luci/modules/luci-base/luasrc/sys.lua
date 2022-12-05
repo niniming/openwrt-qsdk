@@ -472,20 +472,30 @@ function wifi.getiwinfo(ifname)
 	local stat, iwinfo = pcall(require, "iwinfo")
 
 	if ifname then
+		local c = 0
+		local u = uci.cursor_state()
 		local d, n = ifname:match("^(%w+)%.network(%d+)")
-		local wstate = luci.util.ubus("network.wireless", "status") or { }
-
-		d = d or ifname
-		n = n and tonumber(n) or 1
-
-		if type(wstate[d]) == "table" and
-		   type(wstate[d].interfaces) == "table" and
-		   type(wstate[d].interfaces[n]) == "table" and
-		   type(wstate[d].interfaces[n].ifname) == "string"
-		then
-			ifname = wstate[d].interfaces[n].ifname
-		else
+		if d and n then
 			ifname = d
+			n = tonumber(n)
+			u:foreach("wireless", "wifi-iface",
+				function(s)
+					if s.device == d then
+						c = c + 1
+						if c == n then
+							ifname = s.ifname or s.device
+							return false
+						end
+					end
+				end)
+		elseif u:get("wireless", ifname) == "wifi-device" then
+			u:foreach("wireless", "wifi-iface",
+				function(s)
+					if s.device == ifname and s.ifname then
+						ifname = s.ifname
+						return false
+					end
+				end)
 		end
 
 		local t = stat and iwinfo.type(ifname)
