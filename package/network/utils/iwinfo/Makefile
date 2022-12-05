@@ -27,7 +27,8 @@ PKG_CONFIG_DEPENDS := \
 	CONFIG_PACKAGE_kmod-cfg80211 \
 	CONFIG_PACKAGE_kmod-qca-wifi-unified-profile \
 	CONFIG_PACKAGE_kmod-qca-wifi-custc-profile \
-	CONFIG_PACKAGE_kmod-qca-wifi-unified-perf
+	CONFIG_PACKAGE_kmod-qca-wifi-unified-perf \
+	CONFIG_PACKAGE_kmod-qca-wifi-lowmem-profile
 
 IWINFO_ABI_VERSION:=20210430
 
@@ -35,7 +36,8 @@ PKG_BUILD_DEPENDS := \
 	PACKAGE_kmod-qca-wifi:kmod-qca-wifi \
 	PACKAGE_kmod-qca-wifi-unified-profile:kmod-qca-wifi-unified-profile \
 	PACKAGE_kmod-qca-wifi-custc-profile:kmod-qca-wifi-custc-profile \
-	PACKAGE_kmod-qca-wifi-unified-perf:kmod-qca-wifi-unified-perf
+	PACKAGE_kmod-qca-wifi-unified-perf:kmod-qca-wifi-unified-perf \
+	PACKAGE_kmod-qca-wifi-lowmem-profile:kmod-qca-wifi-lowmem-profile
 include $(INCLUDE_DIR)/package.mk
 
 
