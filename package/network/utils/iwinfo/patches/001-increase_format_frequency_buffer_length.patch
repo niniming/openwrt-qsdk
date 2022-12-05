@@ -6,7 +6,7 @@ Index: libiwinfo-2015-06-01/iwinfo_cli.c
  
  static char * format_frequency(int freq)
  {
--	static char buf[10];
+-	static char buf[11];
 +	static char buf[16];
  
  	if (freq <= 0)
