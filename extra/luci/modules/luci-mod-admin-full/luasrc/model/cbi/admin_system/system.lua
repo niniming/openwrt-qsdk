@@ -115,14 +115,16 @@ if has_zram then
 	o.optional    = true
 	o.placeholder = 16
 	o.datatype    = "uinteger"
-
+	
 	o = s:taboption("zram", ListValue, "zram_comp_algo", translate("ZRam Compression Algorithm"))
 	o.optional    = true
 	o.placeholder = lzo
 	o:value("lzo", "lzo")
 	o:value("lz4", "lz4")
+	o:value("lz4hc", "lz4hc")
+	o:value("zstd", "zstd")
 	o:value("deflate", "deflate")
-
+	
 	o = s:taboption("zram", Value, "zram_comp_streams", translate("ZRam Compression Streams"), translate("Number of parallel threads used for compression"))
 	o.optional    = true
 	o.placeholder = 1
@@ -190,9 +192,9 @@ if has_ntpd then
 	end
 
 	local has_section = false
-	m.uci:foreach("system", "timeserver",
-		function(s)
-			has_section = true
+	m.uci:foreach("system", "timeserver", 
+		function(s) 
+			has_section = true 
 			return false
 	end)
 
@@ -208,7 +210,7 @@ if has_ntpd then
 		x.inputstyle = "apply"
 
 	else
-
+		
 		s = m:section(TypedSection, "timeserver", translate("Time Synchronization"))
 		s.anonymous = true
 		s.addremove = false
