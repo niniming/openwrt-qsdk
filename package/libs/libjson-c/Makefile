@@ -25,7 +25,7 @@ PKG_MAINTAINER:=Felix Fietkau <nbd@openwrt.org>
 
 include $(INCLUDE_DIR)/package.mk
 
-TARGET_CFLAGS += $(FPIC)
+TARGET_CFLAGS += $(FPIC) -Wno-implicit-fallthrough
 
 CONFIGURE_ARGS += \
 	ac_cv_func_strdup=yes \

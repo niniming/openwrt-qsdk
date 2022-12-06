@@ -32,7 +32,8 @@ endef
 TARGET_CFLAGS += \
 	-I$(STAGING_DIR)/usr/include/libnl-tiny \
 	-I$(STAGING_DIR)/usr/include \
-	-fpie
+	-fpie -Wno-misleading-indentation \
+	-Wno-format-truncation
 TARGET_LDFLAGS += -pie
 
 CMAKE_OPTIONS += \
