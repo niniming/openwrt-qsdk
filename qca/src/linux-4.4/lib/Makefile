@@ -1,7 +1,7 @@
 #
 # Makefile for some libs needed in the kernel.
 #
-KBUILD_CFLAGS += -Werror
+KBUILD_CFLAGS += -Werror -Wno-format-truncation
 ifdef CONFIG_JFFS2_ZLIB
 	CONFIG_ZLIB_INFLATE:=y
 	CONFIG_ZLIB_DEFLATE:=y

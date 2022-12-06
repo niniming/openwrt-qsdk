@@ -4,7 +4,7 @@
 # 15 Sep 2000, Christoph Hellwig <hch@infradead.org>
 # Rewritten to use lists instead of if-statements.
 #
-KBUILD_CFLAGS += -Werror
+KBUILD_CFLAGS += -Werror -Wno-duplicate-decl-specifier -Wno-format-truncation
 obj-y				+= irqchip/
 obj-y				+= bus/
 
