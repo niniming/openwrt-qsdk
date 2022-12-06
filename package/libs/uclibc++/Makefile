@@ -30,6 +30,9 @@ define Package/uclibcxx
   CATEGORY:=Libraries
   TITLE:=C++ library for embedded systems
   URL:=http://cxx.uclibc.org/src/
+  ifeq ($(CONFIG_GCC_VERSION),"7.5.0")
+    DEPENDS:=+libstdcpp
+  endif
 endef
 
 UCLIBC_TARGET_ARCH:=$(shell echo $(ARCH) | sed -e s'/-.*//' \
@@ -50,6 +53,11 @@ ifneq ($(CONFIG_CCACHE),)
 TARGET_CXX=$(TARGET_CXX_NOCACHE)
 endif
 
+ifeq ($(CONFIG_GCC_VERSION),"7.5.0")
+STD_LIB= -lstdc++
+PKG_BUILD_DEPENDS := PACKAGE_libstdcpp:libstdcpp
+endif
+
 MAKE_FLAGS:= \
 	TOPDIR="$(PKG_BUILD_DIR)/" \
 	$(TARGET_CONFIGURE_OPTS) \
@@ -57,7 +65,7 @@ MAKE_FLAGS:= \
 	CPU_LDFLAGS="$(TARGET_LDFLAGS)" \
 	CROSS="$(TARGET_CROSS)" \
 	CP="$(CP)" \
-	GEN_LIBS="-lc $(LIBGCC_S)" \
+	GEN_LIBS="-lc $(LIBGCC_S) $(STD_LIB) " \
 	check_as_needed=
 
 # check_as_needed overrides dependency on libgcc_s
