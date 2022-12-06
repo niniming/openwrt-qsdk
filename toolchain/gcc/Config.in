@@ -19,6 +19,9 @@ choice
 		select GCC_VERSION_5
 		bool "gcc 5.x"
 
+	config GCC_USE_VERSION_7
+		select GCC_VERSION_7
+		bool "gcc 7.x"
 endchoice
 
 config GCC_USE_GRAPHITE

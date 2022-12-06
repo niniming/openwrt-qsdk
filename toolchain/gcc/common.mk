@@ -51,7 +51,11 @@ ifeq ($(findstring linaro, $(CONFIG_GCC_VERSION)),linaro)
     HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(GCC_DIR)
 else
   PKG_SOURCE_URL:=@GNU/gcc/gcc-$(PKG_VERSION)
-  PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+  ifeq ($(CONFIG_GCC_VERSION),"7.5.0")
+    PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
+  else
+    PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+  endif
 
   ifeq ($(PKG_VERSION),4.6.3)
     PKG_MD5SUM:=773092fe5194353b02bb0110052a972e
@@ -62,6 +66,11 @@ else
   ifeq ($(PKG_VERSION),5.2.0)
     PKG_MD5SUM:=a51bcfeb3da7dd4c623e27207ed43467
   endif
+  
+  ifeq ($(PKG_VERSION),7.5.0)
+    PKG_HASH:=b81946e7f01f90528a1f7352ab08cc602b9ccc05d4e44da4bd501c5a189ee661
+  endif
+
 endif
 
 PATCH_DIR=../patches/$(GCC_VERSION)
