@@ -117,6 +117,7 @@ static const struct freq_tbl ftbl_apcs_alias0_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
 	F(800000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1008000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1200000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	{ }
 };
 
@@ -160,7 +161,7 @@ static struct clk_regmap *apss_ipq5018_clks[] = {
 };
 
 static const struct alpha_pll_config apss_pll_config = {
-	.l = 0x2A,
+	.l = 0x37,
 	.alpha = 0x0,
 	.alpha_hi = 0x0,
 	.config_ctl_val = 0x4001075B,
