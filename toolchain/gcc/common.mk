@@ -25,62 +25,23 @@ GCC_VERSION:=$(call qstrip,$(CONFIG_GCC_VERSION))
 PKG_VERSION:=$(firstword $(subst +, ,$(GCC_VERSION)))
 GCC_DIR:=$(PKG_NAME)-$(PKG_VERSION)
 
-ifeq ($(findstring linaro, $(CONFIG_GCC_VERSION)),linaro)
-    LINARO_RELEASE:=
-    ifeq ($(CONFIG_GCC_VERSION),"4.6-linaro")
-      PKG_REV:=4.6-2013.05
-      PKG_VERSION:=4.6.4
-      PKG_VERSION_MAJOR:=4.6
-      PKG_MD5SUM:=26b48802ae1203cd99415026fbf56ed7
-      PKG_COMP:=bz2
-    endif
-    ifeq ($(CONFIG_GCC_VERSION),"4.8-linaro")
-      PKG_REV:=4.8-2014.04
-      PKG_VERSION:=4.8.3
-      PKG_VERSION_MAJOR:=4.8
-      PKG_MD5SUM:=5ba2f3a449b1658ccc09d27cc7ab3c03
-      PKG_COMP:=xz
-    endif
-    ifneq ($(LINARO_RELEASE),)
-      PKG_SOURCE_URL:=http://releases.linaro.org/$(LINARO_RELEASE)/components/toolchain/gcc-linaro/$(PKG_VERSION_MAJOR)
-    else
-      PKG_SOURCE_URL:=http://launchpad.net/gcc-linaro/$(PKG_VERSION_MAJOR)/$(PKG_REV)/+download/
-    endif
-    PKG_SOURCE:=$(PKG_NAME)-linaro-$(PKG_REV).tar.$(PKG_COMP)
-    GCC_DIR:=gcc-linaro-$(PKG_REV)
-    HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(GCC_DIR)
-else
-  PKG_SOURCE_URL:=@GNU/gcc/gcc-$(PKG_VERSION)
-  ifeq ($(CONFIG_GCC_VERSION),"7.5.0")
-    PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
-  else
-    PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
-  endif
+PKG_SOURCE_URL:=@GNU/gcc/gcc-$(PKG_VERSION)
 
-  ifeq ($(PKG_VERSION),4.6.3)
-    PKG_MD5SUM:=773092fe5194353b02bb0110052a972e
-  endif
-  ifeq ($(PKG_VERSION),4.8.0)
-    PKG_MD5SUM:=e6040024eb9e761c3bea348d1fa5abb0
-  endif
-  ifeq ($(PKG_VERSION),5.2.0)
-    PKG_MD5SUM:=a51bcfeb3da7dd4c623e27207ed43467
-  endif
-  
-  ifeq ($(PKG_VERSION),7.5.0)
-    PKG_HASH:=b81946e7f01f90528a1f7352ab08cc602b9ccc05d4e44da4bd501c5a189ee661
-  endif
-
+ifeq ($(PKG_VERSION),5.2.0)
+  PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
+  PKG_MD5SUM:=a51bcfeb3da7dd4c623e27207ed43467
 endif
+  
+ifeq ($(PKG_VERSION),7.5.0)
+  PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
+  PKG_HASH:=b81946e7f01f90528a1f7352ab08cc602b9ccc05d4e44da4bd501c5a189ee661
+endif
+
 
 PATCH_DIR=../patches/$(GCC_VERSION)
 
-BUGURL=https://dev.openwrt.org/
-ifeq ($(findstring linaro, $(CONFIG_GCC_VERSION)),linaro)
-  PKGVERSION=OpenWrt/Linaro GCC $(PKG_REV) $(REVISION)
-else
-  PKGVERSION=OpenWrt GCC $(PKG_VERSION) $(REVISION)
-endif
+BUGURL=http://bugs.openwrt.org/
+PKGVERSION=OpenWrt GCC $(PKG_VERSION) $(REVISION)
 
 HOST_BUILD_PARALLEL:=1
 
